@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+*.paint
+*.jpeg
+*.png
+*.md
+*.vscode
