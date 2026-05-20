@@ -1,4 +1,5 @@
 node_modules/
+guidelines/
 dist/
 .env
 *.paint
@@ -6,3 +7,4 @@ dist/
 *.png
 *.md
 *.vscode
+*.jam
