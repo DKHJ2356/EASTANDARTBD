@@ -50,7 +50,7 @@ export default function App() {
             className="text-xl tracking-[0.3em] font-semibold"
             style={{ fontFamily: "Poppins, sans-serif" }}
           >
-            EASTANDART
+            EASTANDART BD
           </a>
 
           {/* Mobile menu toggle */}
@@ -157,7 +157,7 @@ export default function App() {
               fontWeight: 700,
             }}
           >
-            EASTANDART
+            EASTANDART BD
           </h1>
           <p
             className="text-xl md:text-2xl text-white/70 mb-8"
