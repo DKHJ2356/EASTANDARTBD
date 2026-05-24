@@ -39,15 +39,15 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen bg-[#0f1f4d] text-white"
+      className="min-h-screen bg-[#0f1f4d] text-white overflow-x-hidden"
       style={{ fontFamily: "Nunito, sans-serif" }}
     >
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0f1f4d]/95 backdrop-blur-sm border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between relative">
           <a
             href="/"
-            className="text-xl tracking-[0.3em] font-semibold"
+            className="md:static absolute left-1/2 md:left-auto md:translate-x-0 -translate-x-1/2 text-base md:text-xl tracking-[0.2em] md:tracking-[0.3em] font-semibold text-center"
             style={{ fontFamily: "Poppins, sans-serif" }}
           >
             EASTANDART BD
@@ -56,7 +56,7 @@ export default function App() {
           {/* Mobile menu toggle */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden flex flex-col gap-1.5 w-6 h-5 justify-center"
+            className="md:hidden flex flex-col gap-1.5 w-6 h-5 justify-center ml-auto"
             aria-label="Toggle navigation"
             aria-expanded={mobileMenuOpen}
           >
@@ -151,7 +151,7 @@ export default function App() {
             Dhaka · Tokyo · Global
           </p>
           <h1
-            className="text-6xl md:text-8xl mb-6 tracking-[0.1em]"
+            className="text-4xl sm:text-6xl md:text-8xl mb-6 tracking-[0.05em] md:tracking-[0.1em]"
             style={{
               fontFamily: "Poppins, sans-serif",
               fontWeight: 700,
