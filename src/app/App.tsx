@@ -795,8 +795,8 @@ function TechStackCarousel() {
   const duplicatedStack = [...techStack, ...techStack];
 
   return (
-    <section className="py-20 px-6 border-t border-white/5 overflow-hidden">
-      <div className="max-w-7xl mx-auto">
+    <section className="py-20 border-t border-white/5">
+      <div className="max-w-7xl mx-auto px-6">
         <div className="mb-16">
           <h2
             className="text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
@@ -805,27 +805,26 @@ function TechStackCarousel() {
             Tech Stack
           </h2>
         </div>
+      </div>
 
-        <div className="relative">
-          {/* Infinite scroll track */}
-          <div className="flex animate-scroll-left">
-            {duplicatedStack.map((tech, index) => (
-              <div
-                key={index}
-                className="flex-shrink-0 w-72 mx-4 border border-white/10 rounded-lg p-6 bg-white/[0.01]"
-              >
-                <div className="text-cyan-400/60 mb-4">
-                  {tech.logo}
-                </div>
-                <span className="text-xs text-cyan-400/60 tracking-wider mb-3 block">
-                  {tech.category}
-                </span>
-                <p className="text-sm text-white/70 whitespace-pre-line">
-                  {tech.tools}
-                </p>
+      <div className="overflow-hidden">
+        <div className="flex animate-scroll-left w-max">
+          {duplicatedStack.map((tech, index) => (
+            <div
+              key={index}
+              className="flex-shrink-0 w-72 mx-4 border border-white/10 rounded-lg p-6 bg-white/[0.01]"
+            >
+              <div className="text-cyan-400/60 mb-4">
+                {tech.logo}
               </div>
-            ))}
-          </div>
+              <span className="text-xs text-cyan-400/60 tracking-wider mb-3 block">
+                {tech.category}
+              </span>
+              <p className="text-sm text-white/70 whitespace-pre-line">
+                {tech.tools}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
 
