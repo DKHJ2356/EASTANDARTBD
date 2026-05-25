@@ -45,7 +45,7 @@ const projects: Project[] = [
       "BIJOUX is an elegant online jewelry boutique offering curated collections of handcrafted pieces. From delicate everyday wear to statement accessories, BIJOUX bridges artisan craftsmanship with seamless digital commerce.",
     category: "E-Commerce · Jewelry",
     status: "live",
-    url: "http://localhost:5173/about",
+    url: "https://bijoux-demo-site.pages.dev/about",
     gradient: "from-amber-950/30 to-rose-950/25",
     accentColor: "text-amber-400/70",
     highlights: [
