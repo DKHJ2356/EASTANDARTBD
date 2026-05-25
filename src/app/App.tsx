@@ -1,828 +1,529 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from "react-router";
 import Services from "./components/Services";
 import Contact from "./components/Contact";
 
-export default function App() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("company");
+// Lazy-load the Trade page — zero cost on the main route
+const TradePage = lazy(() => import("./pages/Trade"));
 
+// ─── Shared nav scroll helper (used by home page sections) ───────────────────
+function useScrollToSection() {
+  return function scrollTo(id: string) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - 72;
+    window.scrollTo({ top, behavior: "smooth" });
+  };
+}
+
+// ─── Navigation ──────────────────────────────────────────────────────────────
+function Nav() {
+  const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState("company");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isHome = location.pathname === "/";
+  const scroller = useScrollToSection();
+
+  // Shadow nav on scroll
   useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 8);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  // Scroll-spy only on home page
+  useEffect(() => {
+    if (!isHome) return;
     const ids = ["company", "services", "contact"];
     const observers: IntersectionObserver[] = [];
-
     ids.forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       const obs = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) setActiveSection(id);
-        },
-        { threshold: 0.3 }
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id); },
+        { threshold: 0.25, rootMargin: "-10% 0px -60% 0px" }
       );
       obs.observe(el);
       observers.push(obs);
     });
+    return () => observers.forEach((o) => o.disconnect());
+  }, [isHome]);
 
-    return () => observers.forEach((obs) => obs.disconnect());
-  }, []);
+  // Close mobile menu when route changes
+  useEffect(() => { setOpen(false); }, [location.pathname]);
 
-  function handleAnchorClick(e: React.MouseEvent<HTMLAnchorElement>, id: string) {
+  function handleSectionClick(
+    e: React.MouseEvent<HTMLAnchorElement>,
+    id: string
+  ) {
     e.preventDefault();
-    setMobileMenuOpen(false);
-    const target = document.getElementById(id);
-    if (target) {
-      const offset = 80;
-      const top = target.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: "smooth" });
+    setOpen(false);
+    if (!isHome) {
+      navigate("/");
+      // slight delay so the home page mounts before we scroll
+      setTimeout(() => scroller(id), 120);
+    } else {
+      scroller(id);
+    }
+  }
+
+  const linkBase =
+    "text-sm transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/50 rounded";
+  const active = "text-white border-b-2 border-cyan-400/60";
+  const inactive = "text-white/60 hover:text-white";
+  const mobileActive = "text-white border-l-2 border-cyan-400/60 pl-4";
+  const mobileInactive = "text-white/60 hover:text-white pl-6 hover:bg-white/5";
+
+  return (
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 bg-[#0f1f4d]/95 backdrop-blur-sm border-b border-white/5 transition-shadow duration-300 ${scrolled ? "shadow-lg shadow-black/30" : ""}`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between relative">
+        {/* Logo — centred on mobile, left on desktop */}
+        <Link
+          to="/"
+          className="absolute left-1/2 -translate-x-1/2 md:static md:left-auto md:translate-x-0 text-sm sm:text-base md:text-xl tracking-[0.15em] sm:tracking-[0.2em] md:tracking-[0.3em] font-semibold text-white whitespace-nowrap"
+          style={{ fontFamily: "Poppins, sans-serif" }}
+          aria-label="EASTANDART BD — home"
+        >
+          EASTANDART BD
+        </Link>
+
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="md:hidden flex flex-col gap-[5px] w-10 h-10 items-center justify-center ml-auto rounded-md hover:bg-white/5 transition-colors"
+          aria-label={open ? "Close navigation" : "Open navigation"}
+          aria-expanded={open}
+          aria-controls="mobile-menu"
+        >
+          <span
+            className={`block h-0.5 w-5 bg-white/70 transition-all duration-300 ${open ? "rotate-45 translate-y-[7px]" : ""}`}
+          />
+          <span
+            className={`block h-0.5 w-5 bg-white/70 transition-all duration-300 ${open ? "opacity-0" : ""}`}
+          />
+          <span
+            className={`block h-0.5 w-5 bg-white/70 transition-all duration-300 ${open ? "-rotate-45 -translate-y-[7px]" : ""}`}
+          />
+        </button>
+
+        {/* Desktop menu */}
+        <ul className="hidden md:flex items-center gap-8" role="list">
+          {[
+            { label: "Company", id: "company" },
+            { label: "Services", id: "services" },
+          ].map(({ label, id }) => (
+            <li key={id}>
+              <a
+                href={`/#${id}`}
+                onClick={(e) => handleSectionClick(e, id)}
+                className={`${linkBase} ${isHome && activeSection === id ? active : inactive}`}
+              >
+                {label}
+              </a>
+            </li>
+          ))}
+          <li>
+            <Link
+              to="/trade"
+              className={`${linkBase} ${location.pathname === "/trade" ? active : inactive}`}
+            >
+              Trade
+            </Link>
+          </li>
+          <li>
+            <a
+              href="/#contact"
+              onClick={(e) => handleSectionClick(e, "contact")}
+              className={`${linkBase} ${isHome && activeSection === "contact" ? active : inactive}`}
+            >
+              Contact
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      {/* Mobile drawer */}
+      <div
+        id="mobile-menu"
+        className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${open ? "max-h-72 border-b border-white/5" : "max-h-0"}`}
+        aria-hidden={!open}
+      >
+        <ul className="py-2" role="list">
+          {[
+            { label: "Company", id: "company" },
+            { label: "Services", id: "services" },
+          ].map(({ label, id }) => (
+            <li key={id}>
+              <a
+                href={`/#${id}`}
+                onClick={(e) => handleSectionClick(e, id)}
+                className={`block py-3 text-sm transition-colors ${isHome && activeSection === id ? mobileActive : mobileInactive}`}
+              >
+                {label}
+              </a>
+            </li>
+          ))}
+          <li>
+            <Link
+              to="/trade"
+              className={`block py-3 text-sm transition-colors ${location.pathname === "/trade" ? mobileActive : mobileInactive}`}
+            >
+              Trade
+            </Link>
+          </li>
+          <li>
+            <a
+              href="/#contact"
+              onClick={(e) => handleSectionClick(e, "contact")}
+              className={`block py-3 text-sm transition-colors ${isHome && activeSection === "contact" ? mobileActive : mobileInactive}`}
+            >
+              Contact
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+  );
+}
+
+// ─── Footer ──────────────────────────────────────────────────────────────────
+function Footer() {
+  const scroller = useScrollToSection();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  function handleSectionClick(
+    e: React.MouseEvent<HTMLAnchorElement>,
+    id: string
+  ) {
+    e.preventDefault();
+    if (location.pathname !== "/") {
+      navigate("/");
+      setTimeout(() => scroller(id), 120);
+    } else {
+      scroller(id);
     }
   }
 
   return (
-    <div
-      className="min-h-screen bg-[#0f1f4d] text-white overflow-x-hidden"
-      style={{ fontFamily: "Nunito, sans-serif" }}
-    >
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0f1f4d]/95 backdrop-blur-sm border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between relative">
-          <a
-            href="/"
-            className="md:static absolute left-1/2 md:left-auto md:translate-x-0 -translate-x-1/2 text-base md:text-xl tracking-[0.2em] md:tracking-[0.3em] font-semibold text-center"
-            style={{ fontFamily: "Poppins, sans-serif" }}
-          >
-            EASTANDART BD
-          </a>
-
-          {/* Mobile menu toggle */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden flex flex-col gap-1.5 w-6 h-5 justify-center ml-auto"
-            aria-label="Toggle navigation"
-            aria-expanded={mobileMenuOpen}
-          >
-            <span className="block h-0.5 w-full bg-white/70 transition-all"></span>
-            <span className="block h-0.5 w-full bg-white/70 transition-all"></span>
-            <span className="block h-0.5 w-full bg-white/70 transition-all"></span>
-          </button>
-
-          {/* Desktop menu */}
-          <ul className="hidden md:flex items-center gap-8">
-            <li>
-              <a
-                href="/"
-                onClick={(e) => handleAnchorClick(e, "company")}
-                className={`text-sm hover:text-white transition-colors ${activeSection === "company" ? "text-white/90 border-b-2 border-cyan-400/60" : "text-white/70"}`}
-              >
-                Company
-              </a>
-            </li>
-            <li>
-              <a
-                href="#services"
-                onClick={(e) => handleAnchorClick(e, "services")}
-                className={`text-sm hover:text-white transition-colors ${activeSection === "services" ? "text-white/90 border-b-2 border-cyan-400/60" : "text-white/70"}`}
-              >
-                Services
-              </a>
-            </li>
-            <li>
-              <a
-                href="#contact"
-                onClick={(e) => handleAnchorClick(e, "contact")}
-                className={`text-sm hover:text-white transition-colors ${activeSection === "contact" ? "text-white/90 border-b-2 border-cyan-400/60" : "text-white/70"}`}
-              >
-                Contact
-              </a>
-            </li>
-          </ul>
-
-          {/* Mobile menu */}
-          {mobileMenuOpen && (
-            <ul className="absolute top-full left-0 right-0 bg-[#0f1f4d] border-b border-white/5 md:hidden">
-              <li className="border-b border-white/5">
-                <a
-                  href="/"
-                  onClick={(e) => handleAnchorClick(e, "company")}
-                  className={`block px-6 py-4 text-sm hover:bg-white/5 ${activeSection === "company" ? "text-white/90 border-l-2 border-cyan-400/60" : "text-white/70"}`}
-                >
-                  Company
-                </a>
-              </li>
-              <li className="border-b border-white/5">
-                <a
-                  href="#services"
-                  onClick={(e) => handleAnchorClick(e, "services")}
-                  className={`block px-6 py-4 text-sm hover:bg-white/5 ${activeSection === "services" ? "text-white/90 border-l-2 border-cyan-400/60" : "text-white/70"}`}
-                >
-                  Services
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#contact"
-                  onClick={(e) => handleAnchorClick(e, "contact")}
-                  className={`block px-6 py-4 text-sm hover:bg-white/5 ${activeSection === "contact" ? "text-white/90 border-l-2 border-cyan-400/60" : "text-white/70"}`}
-                >
-                  Contact
-                </a>
-              </li>
-            </ul>
-          )}
+    <footer className="py-10 px-4 sm:px-6 border-t border-white/5">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-white/50">
+          <p>© 2026 Eastandart BD. All rights reserved.</p>
+          <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1" aria-label="Footer">
+            <a href="/#services" onClick={(e) => handleSectionClick(e, "services")} className="hover:text-white/70 transition-colors">Services</a>
+            <span aria-hidden>·</span>
+            <Link to="/trade" className="hover:text-white/70 transition-colors">Trade</Link>
+            <span aria-hidden>·</span>
+            <a href="/#company" onClick={(e) => handleSectionClick(e, "company")} className="hover:text-white/70 transition-colors">Company</a>
+            <span aria-hidden>·</span>
+            <a href="/#contact" onClick={(e) => handleSectionClick(e, "contact")} className="hover:text-white/70 transition-colors">Contact</a>
+          </nav>
         </div>
-      </nav>
+      </div>
+    </footer>
+  );
+}
 
+// ─── Home page ────────────────────────────────────────────────────────────────
+function HomePage() {
+  return (
+    <>
       {/* Hero Section */}
-      <section id="company" className="relative min-h-screen flex items-center justify-center px-6 pt-24 pb-32 bg-gradient-to-br from-[#0f1f4d]via-[#0d1520] to-[#0a0e17]">
-        <div className="absolute inset-0 opacity-20">
+      <section
+        id="company"
+        className="relative min-h-[100svh] flex items-center justify-center px-4 sm:px-6 pt-20 pb-24 sm:pb-32 bg-gradient-to-br from-[#0f1f4d] via-[#0d1520] to-[#0a0e17]"
+      >
+        {/* Subtle grid — hidden on very small screens to save paint */}
+        <div className="absolute inset-0 opacity-20 hidden sm:block" aria-hidden>
           <div
             className="absolute inset-0"
             style={{
-              backgroundImage: `radial-gradient(circle at 2px 2px, rgba(224, 255, 255, 0.05) 1px, transparent 0)`,
+              backgroundImage: `radial-gradient(circle at 2px 2px, rgba(224,255,255,0.05) 1px, transparent 0)`,
               backgroundSize: "40px 40px",
             }}
-          ></div>
+          />
         </div>
 
         <div className="relative max-w-4xl mx-auto text-center">
           <p
-            className="text-sm text-cyan-400/80 mb-6 tracking-[0.2em]"
+            className="text-xs sm:text-sm text-cyan-400/80 mb-5 tracking-[0.2em]"
             style={{ fontFamily: "Poppins, sans-serif" }}
           >
             Dhaka · Tokyo · Global
           </p>
           <h1
-            className="text-4xl sm:text-6xl md:text-8xl mb-6 tracking-[0.05em] md:tracking-[0.1em]"
-            style={{
-              fontFamily: "Poppins, sans-serif",
-              fontWeight: 700,
-            }}
+            className="text-[clamp(2.25rem,10vw,6rem)] mb-5 sm:mb-6 tracking-[0.05em] sm:tracking-[0.08em] md:tracking-[0.1em] leading-[1.1]"
+            style={{ fontFamily: "Poppins, sans-serif", fontWeight: 700 }}
           >
             EASTANDART BD
           </h1>
           <p
-            className="text-xl md:text-2xl text-white/70 mb-8"
-            style={{
-              fontFamily: "Cormorant Garamond, serif",
-              fontStyle: "italic",
-            }}
+            className="text-lg sm:text-xl md:text-2xl text-white/70 mb-6 sm:mb-8"
+            style={{ fontFamily: "Satoshi, light", fontStyle: "italic" }}
           >
             Bridging Japan and Bangladesh through Technology
           </p>
-          <div className="w-24 h-px bg-gradient-to-r from-transparent via-cyan-400/60 to-transparent mx-auto mb-8"></div>
-          <p className="text-base md:text-lg text-white/60 max-w-2xl mx-auto leading-relaxed">
-            IT infrastructure management, 24/7 system
-            monitoring, and technical problem-solving — before
-            issues become business problems.
+          <div className="hero-divider" aria-hidden />
+          <p className="text-sm sm:text-base md:text-lg text-white/60 max-w-2xl mx-auto leading-relaxed px-2">
+            IT infrastructure management, 24/7 system monitoring, and
+            technical problem-solving — before issues become business
+            problems.
           </p>
         </div>
       </section>
 
       {/* About Us Section */}
-      <section className="py-20 px-6 border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-16">
-            <h2
-              className="text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
-              style={{ fontFamily: "Poppins, sans-serif" }}
-            >
-              About Us
-            </h2>
-          </div>
+      <LazySection id="about">
+        <section className="py-16 sm:py-20 px-4 sm:px-6 border-t border-white/5">
+          <div className="max-w-7xl mx-auto">
+            <SectionLabel>About Us</SectionLabel>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Business Technology Card */}
-            <div className="group">
-              <div className="relative h-56 mb-6 bg-gradient-to-br from-cyan-950/20 to-blue-950/20 rounded-lg overflow-hidden">
-                <svg
-                  className="absolute inset-0 w-full h-full opacity-30"
-                  viewBox="0 0 400 220"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <line
-                    x1="0"
-                    y1="110"
-                    x2="400"
-                    y2="110"
-                    stroke="rgba(224,255,255,0.07)"
-                    strokeWidth="1"
-                  />
-                  <line
-                    x1="200"
-                    y1="0"
-                    x2="200"
-                    y2="220"
-                    stroke="rgba(224,255,255,0.07)"
-                    strokeWidth="1"
-                  />
-                  <circle
-                    cx="200"
-                    cy="110"
-                    r="55"
-                    stroke="rgba(224,255,255,0.06)"
-                    strokeWidth="1"
-                    fill="none"
-                  />
-                  <circle
-                    cx="200"
-                    cy="110"
-                    r="88"
-                    stroke="rgba(224,255,255,0.04)"
-                    strokeWidth="1"
-                    fill="none"
-                  />
-                  <rect
-                    x="110"
-                    y="60"
-                    width="180"
-                    height="100"
-                    stroke="rgba(224,255,255,0.05)"
-                    strokeWidth="1"
-                    fill="none"
-                  />
-                  <rect
-                    x="130"
-                    y="80"
-                    width="140"
-                    height="60"
-                    stroke="rgba(224,255,255,0.04)"
-                    strokeWidth="1"
-                    fill="none"
-                  />
-                  <line
-                    x1="110"
-                    y1="60"
-                    x2="200"
-                    y2="110"
-                    stroke="rgba(224,255,255,0.04)"
-                    strokeWidth="1"
-                  />
-                  <line
-                    x1="290"
-                    y1="60"
-                    x2="200"
-                    y2="110"
-                    stroke="rgba(224,255,255,0.04)"
-                    strokeWidth="1"
-                  />
-                </svg>
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e17] via-transparent to-transparent"></div>
-                <span className="absolute bottom-4 left-4 text-xs text-cyan-400/60 tracking-wider">
-                  Business · Tech
-                </span>
-              </div>
-              <div>
-                <span className="text-xs text-cyan-400/60 tracking-wider mb-3 block">
-                  IT Solution
-                </span>
-                <h3
-                  className="text-2xl mb-4"
-                  style={{
-                    fontFamily: "Poppins, sans-serif",
-                    fontWeight: 600,
-                  }}
-                >
-                  Business Technology Division
-                </h3>
-                <p className="text-white/60 leading-relaxed">
-                  Unleashing the true potential of an
-                  organization through holistic optimization
-                  from a management perspective. We provide
-                  reliable consulting that goes beyond partial
-                  improvements, driving digital transformation
-                  with enterprise-grade Japanese IT standards.
-                </p>
-              </div>
-            </div>
-
-            {/* Workplace Card */}
-            <div className="group">
-              <div className="relative h-56 mb-6 bg-gradient-to-br from-purple-950/20 to-pink-950/20 rounded-lg overflow-hidden">
-                <svg
-                  className="absolute inset-0 w-full h-full opacity-30"
-                  viewBox="0 0 400 220"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <line
-                    x1="0"
-                    y1="55"
-                    x2="400"
-                    y2="55"
-                    stroke="rgba(224,255,255,0.06)"
-                    strokeWidth="1"
-                  />
-                  <line
-                    x1="0"
-                    y1="165"
-                    x2="400"
-                    y2="165"
-                    stroke="rgba(224,255,255,0.06)"
-                    strokeWidth="1"
-                  />
-                  <line
-                    x1="100"
-                    y1="0"
-                    x2="100"
-                    y2="220"
-                    stroke="rgba(224,255,255,0.05)"
-                    strokeWidth="1"
-                  />
-                  <line
-                    x1="300"
-                    y1="0"
-                    x2="300"
-                    y2="220"
-                    stroke="rgba(224,255,255,0.05)"
-                    strokeWidth="1"
-                  />
-                  <circle
-                    cx="200"
-                    cy="110"
-                    r="65"
-                    stroke="rgba(224,255,255,0.06)"
-                    strokeWidth="1"
-                    fill="none"
-                  />
-                  <polygon
-                    points="200,50 260,170 140,170"
-                    stroke="rgba(224,255,255,0.05)"
-                    strokeWidth="1"
-                    fill="none"
-                  />
-                  <circle
-                    cx="200"
-                    cy="110"
-                    r="20"
-                    stroke="rgba(224,255,255,0.04)"
-                    strokeWidth="1"
-                    fill="none"
-                  />
-                </svg>
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e17] via-transparent to-transparent"></div>
-                <span className="absolute bottom-4 left-4 text-xs text-cyan-400/60 tracking-wider">
-                  Workplace
-                </span>
-              </div>
-              <div>
-                <span className="text-xs text-cyan-400/60 tracking-wider mb-3 block">
-                  Trade Services
-                </span>
-                <h3
-                  className="text-2xl mb-4"
-                  style={{
-                    fontFamily: "Poppins, sans-serif",
-                    fontWeight: 600,
-                  }}
-                >
-                  Workplace Business
-                </h3>
-                <p className="text-white/60 leading-relaxed">
-                  We optimize the physical work environment and
-                  support the foundation of the organization
-                  from the infrastructure level. Office
-                  interiors, electrical work, and network
-                  construction are crucial foundations that
-                  significantly impact productivity.
-                </p>
-              </div>
+            <div className="grid sm:grid-cols-2 gap-6 sm:gap-8 mt-12 sm:mt-16">
+              {/* IT Solution card */}
+              <AboutCard
+                tag="IT Solution"
+                title="Business Technology Division"
+                desc="Unleashing the true potential of an organization through holistic optimization from a management perspective. We provide reliable consulting that goes beyond partial improvements, driving digital transformation with enterprise-grade Japanese IT standards."
+                bgClass="from-cyan-950/20 to-blue-950/20"
+                cardLabel="Business · Tech"
+                svgContent={
+                  <svg className="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <line x1="0" y1="110" x2="400" y2="110" stroke="rgba(224,255,255,0.07)" strokeWidth="1"/>
+                    <line x1="200" y1="0" x2="200" y2="220" stroke="rgba(224,255,255,0.07)" strokeWidth="1"/>
+                    <circle cx="200" cy="110" r="55" stroke="rgba(224,255,255,0.06)" strokeWidth="1" fill="none"/>
+                    <circle cx="200" cy="110" r="88" stroke="rgba(224,255,255,0.04)" strokeWidth="1" fill="none"/>
+                    <rect x="110" y="60" width="180" height="100" stroke="rgba(224,255,255,0.05)" strokeWidth="1" fill="none"/>
+                  </svg>
+                }
+              />
+              {/* Trade card */}
+              <AboutCard
+                tag="Trade Services"
+                title="Workplace Business"
+                desc="We optimize the physical work environment and support the foundation of the organization from the infrastructure level. Office interiors, electrical work, and network construction are crucial foundations that significantly impact productivity."
+                bgClass="from-purple-950/20 to-pink-950/20"
+                cardLabel="Workplace"
+                svgContent={
+                  <svg className="absolute inset-0 w-full h-full opacity-30" viewBox="0 0 400 220" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <circle cx="200" cy="110" r="65" stroke="rgba(224,255,255,0.06)" strokeWidth="1" fill="none"/>
+                    <polygon points="200,50 260,170 140,170" stroke="rgba(224,255,255,0.05)" strokeWidth="1" fill="none"/>
+                    <circle cx="200" cy="110" r="20" stroke="rgba(224,255,255,0.04)" strokeWidth="1" fill="none"/>
+                  </svg>
+                }
+              />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </LazySection>
 
       {/* Overview Section */}
-      <section className="py-20 px-6 border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-16">
-            <h2
-              className="text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
-              style={{ fontFamily: "Poppins, sans-serif" }}
-            >
-              Overview
-            </h2>
+      <LazySection id="overview">
+        <section className="py-16 sm:py-20 px-4 sm:px-6 border-t border-white/5">
+          <div className="max-w-7xl mx-auto">
+            <SectionLabel>Overview</SectionLabel>
+            <div className="max-w-4xl space-y-5 mt-12 sm:mt-16">
+              <p className="text-base sm:text-lg text-white/70 leading-relaxed">
+                Technology should work quietly in the background — so that people can
+                focus on the work that actually matters. When a network goes down,
+                when a tool stops responding, when a new office needs to get
+                connected, someone has to take care of it. That is what our IT
+                Solution team does.
+              </p>
+              <p className="text-base sm:text-lg text-white/70 leading-relaxed">
+                We manage IT infrastructure, monitor systems around the clock, and
+                help organizations solve technical problems before they become
+                business problems. We work with companies in Bangladesh and Japan,
+                and our team collaborates fluently across both — in Bengali, English,
+                and Japanese.
+              </p>
+            </div>
           </div>
+        </section>
+      </LazySection>
 
-          <div className="max-w-4xl space-y-6">
-            <p className="text-lg text-white/70 leading-relaxed">
-              Technology should work quietly in the background —
-              so that people can focus on the work that actually
-              matters. When a network goes down, when a tool
-              stops responding, when a new office needs to get
-              connected, someone has to take care of it. That is
-              what our IT Solution team does.
-            </p>
-            <p className="text-lg text-white/70 leading-relaxed">
-              We manage IT infrastructure, monitor systems
-              around the clock, and help organizations solve
-              technical problems before they become business
-              problems. We work with companies in Bangladesh and
-              Japan, and our team collaborates fluently across
-              both — in Bengali, English, and Japanese.
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* Services */}
+      <LazySection id="services-wrapper">
+        <Services />
+      </LazySection>
 
-      {/* Services Section (includes three-step workflow + what we do) */}
-      <Services />
+      {/* Tech Stack Carousel */}
+      <LazySection id="tech-stack">
+        <TechStackCarousel />
+      </LazySection>
 
-      {/* Tech Stack Section */}
-      <TechStackCarousel />
+      {/* Why Eastandart BD */}
+      <LazySection id="why">
+        <WhySection />
+      </LazySection>
 
-      {/* Why Eastandart BD Section */}
-      <section className="py-20 px-6 border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-16">
-            <h2
-              className="text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
-              style={{ fontFamily: "Poppins, sans-serif" }}
-            >
-              Why Eastandart BD
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            {[
-              {
-                icon: (
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 28 28"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <rect
-                      x="1.5"
-                      y="1.5"
-                      width="25"
-                      height="25"
-                      rx="2"
-                      stroke="rgba(224,255,255,0.40)"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M7 14h14M14 7v14"
-                      stroke="rgba(224,255,255,0.65)"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                ),
-                title: "Japanese IT Standards",
-                text: "Engineering standards developed by Eastandart Japan — the same applied to enterprise clients across Japan. Institutional knowledge at Bangladesh rates.",
-              },
-              {
-                icon: (
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 28 28"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      cx="14"
-                      cy="14"
-                      r="12"
-                      stroke="rgba(224,255,255,0.40)"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M10 14l3 3 6-6"
-                      stroke="rgba(224,255,255,0.65)"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                ),
-                title: "AI-Native Operations",
-                text: "AI is not a feature we are planning to add — it is part of how we work today. Engineers trained to use AI tools as a daily productivity layer for faster delivery and consistent quality.",
-              },
-              {
-                icon: (
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 28 28"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      cx="9"
-                      cy="14"
-                      r="5.5"
-                      stroke="rgba(224,255,255,0.40)"
-                      strokeWidth="1.5"
-                    />
-                    <circle
-                      cx="19"
-                      cy="14"
-                      r="5.5"
-                      stroke="rgba(224,255,255,0.40)"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M14 9.5v9"
-                      stroke="rgba(224,255,255,0.22)"
-                      strokeWidth="1"
-                      strokeDasharray="2 2"
-                    />
-                  </svg>
-                ),
-                title: "Multilingual Without Friction",
-                text: "Bengali, English, and Japanese — spoken and written — without translation tools or external interpreters. A structural capability, not a workaround.",
-              },
-              {
-                icon: (
-                  <svg
-                    width="28"
-                    height="28"
-                    viewBox="0 0 28 28"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-hidden="true"
-                  >
-                    <rect
-                      x="4"
-                      y="7"
-                      width="20"
-                      height="15"
-                      rx="2"
-                      stroke="rgba(224,255,255,0.40)"
-                      strokeWidth="1.5"
-                    />
-                    <path
-                      d="M8 6V7M20 6V7"
-                      stroke="rgba(224,255,255,0.40)"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                    />
-                    <path
-                      d="M8 13h12M8 17h8"
-                      stroke="rgba(224,255,255,0.50)"
-                      strokeWidth="1"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                ),
-                title: "Transparent by Default",
-                text: "All work tracked in shared tooling. Full visibility into what is happening and why, updated continuously, in the language of your choice.",
-              },
-            ].map((item, index) => (
-              <div
-                key={index}
-                className="border border-white/10 rounded-lg p-8 bg-white/[0.01]"
-              >
-                <div className="w-7 h-7 mb-6 flex items-center justify-center">
-                  {item.icon}
-                </div>
-                <h3
-                  className="text-xl mb-4"
-                  style={{
-                    fontFamily: "Poppins, sans-serif",
-                    fontWeight: 600,
-                  }}
-                >
-                  {item.title}
-                </h3>
-                <p className="text-white/60 leading-relaxed">
-                  {item.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
+      {/* Contact */}
       <Contact />
+    </>
+  );
+}
 
-      {/* Footer */}
-      <footer className="py-12 px-6 border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-white/50">
-            <p>© 2026 Eastandart BD. All rights reserved.</p>
-            <nav className="flex items-center gap-3">
-              <a
-                href="#services"
-                onClick={(e) => handleAnchorClick(e, "services")}
-                className="hover:text-white/70 transition-colors"
-              >
-                Services
-              </a>
-              <span>·</span>
-              <a
-                href="/"
-                className="hover:text-white/70 transition-colors"
-              >
-                Company
-              </a>
-              <span>·</span>
-              <a
-                href="#contact"
-                onClick={(e) => handleAnchorClick(e, "contact")}
-                className="hover:text-white/70 transition-colors"
-              >
-                Contact
-              </a>
-            </nav>
-          </div>
-        </div>
-      </footer>
+// ─── Reusable helpers ─────────────────────────────────────────────────────────
+
+/** Fades in a section as it enters the viewport — avoids painting hidden content */
+function LazySection({ id, children }: { id: string; children: React.ReactNode }) {
+  const [visible, setVisible] = useState(false);
+  const ref = (node: HTMLDivElement | null) => {
+    if (!node) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { rootMargin: "120px" }
+    );
+    obs.observe(node);
+  };
+  return (
+    <div
+      id={id}
+      ref={ref}
+      className={`transition-opacity duration-500 ${visible ? "opacity-100" : "opacity-0"}`}
+    >
+      {children}
     </div>
   );
 }
 
-function TechStackCarousel() {
-  const techStack = [
-    {
-      name: "Cisco Meraki",
-      category: "Network Management",
-      tools: "Cisco Meraki MX · MS · MR\nMeraki Dashboard",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M11.99 0C5.385 0 0 5.385 0 11.99s5.385 11.99 11.99 11.99 11.99-5.385 11.99-11.99S18.597 0 11.99 0zM6.333 14.458a4.967 4.967 0 0 1-1.229-3.291c0-2.756 2.232-4.99 4.988-4.99.9 0 1.745.241 2.475.659l-1.21 1.847a2.804 2.804 0 0 0-1.265-.3c-1.536 0-2.782 1.244-2.782 2.784 0 .755.301 1.441.789 1.946zm5.657 1.7a4.965 4.965 0 0 1-2.475-.659l1.21-1.847c.379.19.807.3 1.265.3 1.536 0 2.782-1.244 2.782-2.784a2.77 2.77 0 0 0-.789-1.946l1.23-1.851a4.964 4.964 0 0 1 1.229 3.291c-.004 2.756-2.236 4.996-4.992 4.996z" />
-        </svg>
-      ),
-    },
-    {
-      name: "Datadog",
-      category: "Monitoring",
-      tools: "Datadog",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M23.982 13.26l-2.033-2.802V4.473L15.47.017l-7.48 4.456-6.01 3.59v9.068l5.98 3.57 1.428.853.02.011 4.063 2.435 6.03-3.6zm-15.66 6.102l-5.41-3.236V8.548l5.41 3.235zm.512-9.047L3.426 7.08l5.442-3.251 5.413 3.235zm12.144 5.823l-5.41 3.235V13.14l5.41-3.24zM20.96 8.87l-5.443 3.252V6.053l5.443-3.253zM9.45 11.615l5.413-3.235v6.121l-5.413 3.235z" />
-        </svg>
-      ),
-    },
-    {
-      name: "Vanta",
-      category: "Compliance",
-      tools: "Vanta",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M12 0L1 4.5v7C1 17.27 5.84 22.74 12 24c6.16-1.26 11-6.73 11-12.5v-7L12 0zm4.6 8.22l-4.97 8.6h-.02L6.64 8.22h2.49l2.5 4.35 2.51-4.35h2.46z" />
-        </svg>
-      ),
-    },
-    {
-      name: "Anthropic",
-      category: "AI Operations",
-      tools: "Claude (Anthropic)",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48zm-7.258 0H10.2L16.772 20h-3.612L11.1 15.51H5.155l-1.062 4.49H.482l6.087-16.48zM6.17 12.701h3.954L8.154 6.99l-1.984 5.711z" />
-        </svg>
-      ),
-    },
-    {
-      name: "Okta",
-      category: "Identity & Access",
-      tools: "Okta",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 18c-3.313 0-6-2.687-6-6s2.687-6 6-6 6 2.687 6 6-2.687 6-6 6z" />
-        </svg>
-      ),
-    },
-    {
-      name: "Notion",
-      category: "Project Management",
-      tools: "Notion · Backlog\nGitHub Projects",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.047.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z" />
-        </svg>
-      ),
-    },
-    {
-      name: "Slack",
-      category: "Communication",
-      tools: "Slack\nGmail · Google Workspace",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
-        </svg>
-      ),
-    },
-    {
-      name: "AWS",
-      category: "Cloud Infrastructure",
-      tools: "Amazon Web Services (AWS)",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.247-.503c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.030-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.862.272a2.287 2.287 0 0 1-.28.104.488.488 0 0 1-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.279-.144.614-.264 1.005-.36a4.84 4.84 0 0 1 1.246-.151c.95 0 1.644.216 2.091.647.439.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 0 1-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 0 0 .415-.758.778.778 0 0 0-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 1-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.311.088.455.136.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.07.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 16.207c-2.626 1.94-6.442 2.969-9.722 2.969-4.598 0-8.74-1.7-11.87-4.526-.247-.223-.025-.527.27-.352 3.384 1.963 7.559 3.147 11.877 3.147 2.914 0 6.114-.607 9.06-1.852.439-.2.814.287.385.614zm1.093-1.254c-.336-.43-2.22-.207-3.074-.103-.255.032-.295-.192-.063-.36 1.5-1.053 3.967-.75 4.254-.399.287.36-.08 2.826-1.485 4.007-.215.184-.423.088-.327-.151.32-.79 1.03-2.57.695-2.994z" />
-        </svg>
-      ),
-    },
-    {
-      name: "CSS",
-      category: "Web Development",
-      tools: "HTML · CSS · JavaScript\nModern frameworks",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z" />
-        </svg>
-      ),
-    },
-    {
-      name: "GitHub",
-      category: "Documentation & Config",
-      tools: "GitHub · draw.io",
-      logo: (
-        <svg
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-12 h-12"
-          fill="currentColor"
-        >
-          <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
-        </svg>
-      ),
-    },
-  ];
-
-  // Duplicate the array for seamless infinite scroll
-  const duplicatedStack = [...techStack, ...techStack];
-
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <section className="py-20 border-t border-white/5">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-16">
-          <h2
-            className="text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
-            style={{ fontFamily: "Poppins, sans-serif" }}
-          >
-            Tech Stack
-          </h2>
+    <h2
+      className="text-xs sm:text-sm tracking-[0.3em] text-cyan-400/80"
+      style={{ fontFamily: "Poppins, sans-serif" }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+function AboutCard({
+  tag, title, desc, bgClass, cardLabel, svgContent,
+}: {
+  tag: string; title: string; desc: string;
+  bgClass: string; cardLabel: string; svgContent: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className={`relative h-44 sm:h-56 mb-5 sm:mb-6 bg-gradient-to-br ${bgClass} rounded-lg overflow-hidden`}>
+        {svgContent}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e17] via-transparent to-transparent" />
+        <span className="absolute bottom-3 left-4 text-xs text-cyan-400/60 tracking-wider">{cardLabel}</span>
+      </div>
+      <span className="text-xs text-cyan-400/60 tracking-wider mb-2 block">{tag}</span>
+      <h3 className="text-xl sm:text-2xl mb-3 sm:mb-4" style={{ fontFamily: "Poppins, sans-serif", fontWeight: 600 }}>
+        {title}
+      </h3>
+      <p className="text-sm sm:text-base text-white/60 leading-relaxed">{desc}</p>
+    </div>
+  );
+}
+
+// ─── Why section ─────────────────────────────────────────────────────────────
+const whyItems = [
+  {
+    title: "Japanese IT Standards",
+    text: "Engineering standards developed by Eastandart Japan — the same applied to enterprise clients across Japan. Institutional knowledge at Bangladesh rates.",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+        <rect x="1.5" y="1.5" width="25" height="25" rx="2" stroke="rgba(224,255,255,0.40)" strokeWidth="1.5"/>
+        <path d="M7 14h14M14 7v14" stroke="rgba(224,255,255,0.65)" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    title: "AI-Native Operations",
+    text: "AI is not a feature we are planning to add — it is part of how we work today. Engineers trained to use AI tools as a daily productivity layer for faster delivery and consistent quality.",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+        <circle cx="14" cy="14" r="12" stroke="rgba(224,255,255,0.40)" strokeWidth="1.5"/>
+        <path d="M10 14l3 3 6-6" stroke="rgba(224,255,255,0.65)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    title: "Multilingual Without Friction",
+    text: "Bengali, English, and Japanese — spoken and written — without translation tools or external interpreters. A structural capability, not a workaround.",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+        <circle cx="9" cy="14" r="5.5" stroke="rgba(224,255,255,0.40)" strokeWidth="1.5"/>
+        <circle cx="19" cy="14" r="5.5" stroke="rgba(224,255,255,0.40)" strokeWidth="1.5"/>
+        <path d="M14 9.5v9" stroke="rgba(224,255,255,0.22)" strokeWidth="1" strokeDasharray="2 2"/>
+      </svg>
+    ),
+  },
+  {
+    title: "Transparent by Default",
+    text: "All work tracked in shared tooling. Full visibility into what is happening and why, updated continuously, in the language of your choice.",
+    icon: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+        <rect x="4" y="7" width="20" height="15" rx="2" stroke="rgba(224,255,255,0.40)" strokeWidth="1.5"/>
+        <path d="M8 6V7M20 6V7" stroke="rgba(224,255,255,0.40)" strokeWidth="1.5" strokeLinecap="round"/>
+        <path d="M8 13h12M8 17h8" stroke="rgba(224,255,255,0.50)" strokeWidth="1" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+];
+
+function WhySection() {
+  return (
+    <section className="py-16 sm:py-20 px-4 sm:px-6 border-t border-white/5">
+      <div className="max-w-7xl mx-auto">
+        <SectionLabel>Why Eastandart BD</SectionLabel>
+        <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 mt-12 sm:mt-16">
+          {whyItems.map((item, i) => (
+            <div key={i} className="border border-white/10 rounded-lg p-6 sm:p-8 bg-white/[0.01]">
+              <div className="w-7 h-7 mb-5 sm:mb-6 flex items-center justify-center">{item.icon}</div>
+              <h3 className="text-lg sm:text-xl mb-3 sm:mb-4" style={{ fontFamily: "Poppins, sans-serif", fontWeight: 600 }}>
+                {item.title}
+              </h3>
+              <p className="text-sm sm:text-base text-white/60 leading-relaxed">{item.text}</p>
+            </div>
+          ))}
         </div>
       </div>
+    </section>
+  );
+}
 
-      <div className="overflow-hidden">
+// ─── Tech Stack Carousel ──────────────────────────────────────────────────────
+const techStack = [
+  { name: "Cisco Meraki", category: "Network Management", tools: "Cisco Meraki MX · MS · MR\nMeraki Dashboard", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M11.99 0C5.385 0 0 5.385 0 11.99s5.385 11.99 11.99 11.99 11.99-5.385 11.99-11.99S18.597 0 11.99 0zM6.333 14.458a4.967 4.967 0 0 1-1.229-3.291c0-2.756 2.232-4.99 4.988-4.99.9 0 1.745.241 2.475.659l-1.21 1.847a2.804 2.804 0 0 0-1.265-.3c-1.536 0-2.782 1.244-2.782 2.784 0 .755.301 1.441.789 1.946zm5.657 1.7a4.965 4.965 0 0 1-2.475-.659l1.21-1.847c.379.19.807.3 1.265.3 1.536 0 2.782-1.244 2.782-2.784a2.77 2.77 0 0 0-.789-1.946l1.23-1.851a4.964 4.964 0 0 1 1.229 3.291c-.004 2.756-2.236 4.996-4.992 4.996z"/></svg> },
+  { name: "Datadog", category: "Monitoring", tools: "Datadog", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M23.982 13.26l-2.033-2.802V4.473L15.47.017l-7.48 4.456-6.01 3.59v9.068l5.98 3.57 1.428.853.02.011 4.063 2.435 6.03-3.6zm-15.66 6.102l-5.41-3.236V8.548l5.41 3.235zm.512-9.047L3.426 7.08l5.442-3.251 5.413 3.235zm12.144 5.823l-5.41 3.235V13.14l5.41-3.24zM20.96 8.87l-5.443 3.252V6.053l5.443-3.253zM9.45 11.615l5.413-3.235v6.121l-5.413 3.235z"/></svg> },
+  { name: "Vanta", category: "Compliance", tools: "Vanta", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M12 0L1 4.5v7C1 17.27 5.84 22.74 12 24c6.16-1.26 11-6.73 11-12.5v-7L12 0zm4.6 8.22l-4.97 8.6h-.02L6.64 8.22h2.49l2.5 4.35 2.51-4.35h2.46z"/></svg> },
+  { name: "Anthropic", category: "AI Operations", tools: "Claude (Anthropic)", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48zm-7.258 0H10.2L16.772 20h-3.612L11.1 15.51H5.155l-1.062 4.49H.482l6.087-16.48zM6.17 12.701h3.954L8.154 6.99l-1.984 5.711z"/></svg> },
+  { name: "Okta", category: "Identity & Access", tools: "Okta", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 18c-3.313 0-6-2.687-6-6s2.687-6 6-6 6 2.687 6 6-2.687 6-6 6z"/></svg> },
+  { name: "Notion", category: "Project Management", tools: "Notion · Backlog\nGitHub Projects", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.047.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/></svg> },
+  { name: "Slack", category: "Communication", tools: "Slack\nGmail · Google Workspace", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg> },
+  { name: "AWS", category: "Cloud Infrastructure", tools: "Amazon Web Services (AWS)", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.247-.503c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.030-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.862.272a2.287 2.287 0 0 1-.28.104.488.488 0 0 1-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.279-.144.614-.264 1.005-.36a4.84 4.84 0 0 1 1.246-.151c.95 0 1.644.216 2.091.647.439.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 0 1-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 0 0 .415-.758.778.778 0 0 0-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 0-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.311.088.455.136.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.062.223-.248.152-.375.383-.375.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.07.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167z"/></svg> },
+  { name: "GitHub", category: "Documentation & Config", tools: "GitHub · draw.io", logo: <svg viewBox="0 0 24 24" className="w-10 h-10 sm:w-12 sm:h-12" fill="currentColor" aria-hidden><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg> },
+];
+
+function TechStackCarousel() {
+  const doubled = [...techStack, ...techStack];
+  return (
+    <section className="py-16 sm:py-20 border-t border-white/5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-10 sm:mb-16">
+        <SectionLabel>Tech Stack</SectionLabel>
+      </div>
+
+      {/* Overflow wrapper — no scrollbar visible */}
+      <div className="overflow-hidden" aria-label="Technology stack" role="region">
         <div className="flex animate-scroll-left w-max">
-          {duplicatedStack.map((tech, index) => (
+          {doubled.map((tech, i) => (
             <div
-              key={index}
-              className="flex-shrink-0 w-72 mx-4 border border-white/10 rounded-lg p-6 bg-white/[0.01]"
+              key={i}
+              className="flex-shrink-0 w-56 sm:w-64 md:w-72 mx-3 sm:mx-4 border border-white/10 rounded-lg p-4 sm:p-6 bg-white/[0.01]"
+              aria-hidden={i >= techStack.length}
             >
-              <div className="text-cyan-400/60 mb-4">
-                {tech.logo}
-              </div>
-              <span className="text-xs text-cyan-400/60 tracking-wider mb-3 block">
-                {tech.category}
-              </span>
-              <p className="text-sm text-white/70 whitespace-pre-line">
-                {tech.tools}
-              </p>
+              <div className="text-cyan-400/60 mb-3 sm:mb-4">{tech.logo}</div>
+              <span className="text-xs text-cyan-400/60 tracking-wider mb-2 sm:mb-3 block">{tech.category}</span>
+              <p className="text-xs sm:text-sm text-white/70 whitespace-pre-line">{tech.tools}</p>
             </div>
           ))}
         </div>
@@ -830,22 +531,62 @@ function TechStackCarousel() {
 
       <style>{`
         @keyframes scroll-left {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
+          from { transform: translateX(0); }
+          to   { transform: translateX(-50%); }
         }
-
         .animate-scroll-left {
           animation: scroll-left 40s linear infinite;
+          will-change: transform;
         }
-
-        .animate-scroll-left:hover {
-          animation-play-state: paused;
+        .animate-scroll-left:hover { animation-play-state: paused; }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-scroll-left {
+            animation: none;
+            overflow-x: auto;
+            /* Show as a scrollable row instead */
+            display: flex;
+          }
         }
       `}</style>
     </section>
+  );
+}
+
+// ─── Root app with router ─────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <BrowserRouter>
+      <div
+        className="min-h-screen bg-[#0f1f4d] text-white overflow-x-hidden"
+        style={{ fontFamily: "Nunito, sans-serif" }}
+      >
+        <Nav />
+
+        {/* Main content — padded for fixed nav */}
+        <main>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route
+              path="/trade"
+              element={
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center min-h-[60vh] text-white/40 text-sm tracking-widest pt-20">
+                      Loading…
+                    </div>
+                  }
+                >
+                  <TradePage />
+                </Suspense>
+              }
+            />
+            {/* Catch-all → home */}
+            <Route path="*" element={<HomePage />} />
+          </Routes>
+        </main>
+
+        <Footer />
+      </div>
+    </BrowserRouter>
   );
 }

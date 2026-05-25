@@ -5,7 +5,23 @@
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>EASTANDART BD</title>
-      <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
+
+      <!-- Preconnect to Google Fonts for faster font loading -->
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+      <!-- Load only the weights/subsets we use; display=swap prevents FOIT -->
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Nunito:wght@400;600&family=Cormorant+Garamond:ital,wght@1,400&display=swap"
+      />
+
+      <style>
+        html, body { height: 100%; margin: 0; }
+        #root { height: 100%; }
+        /* Prevent layout shift while fonts load */
+        body { font-family: Nunito, system-ui, sans-serif; }
+      </style>
     </head>
 
     <body>
@@ -13,4 +29,3 @@
       <script type="module" src="/src/main.tsx"></script>
     </body>
   </html>
-  

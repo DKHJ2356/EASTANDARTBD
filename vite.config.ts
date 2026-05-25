@@ -26,11 +26,33 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      // Alias @ to the src directory
       '@': resolve(__dirname, './src'),
     },
   },
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
+
+  build: {
+    // Target modern browsers — Cloudflare edge runs V8, no need for legacy transforms
+    target: 'es2020',
+    // Cloudflare Pages limit per file is 25 MB; keep chunks well under
+    chunkSizeWarningLimit: 500,
+    rollupOptions: {
+      output: {
+        // Split vendor code into a separate chunk so it can be cached independently
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+        },
+        // Hashed filenames — matches the /assets/* immutable cache rule in _headers
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
+    },
+    // Generate source maps for Cloudflare error tracking (stripped from response by CDN)
+    sourcemap: false,
+    // Minify with esbuild (default, fastest)
+    minify: 'esbuild',
+  },
 })

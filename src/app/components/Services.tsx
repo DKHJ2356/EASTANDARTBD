@@ -28,70 +28,71 @@ export default function Services() {
     e.preventDefault();
     const target = document.getElementById("contact");
     if (target) {
-      const offset = 80;
-      const top = target.getBoundingClientRect().top + window.scrollY - offset;
+      const top = target.getBoundingClientRect().top + window.scrollY - 72;
       window.scrollTo({ top, behavior: "smooth" });
     }
   }
 
   return (
-    <section id="services" className="py-20 px-6 border-t border-white/5">
+    <section id="services" className="py-16 sm:py-20 px-4 sm:px-6 border-t border-white/5">
       <div className="max-w-7xl mx-auto">
         {/* Section header */}
-        <div className="mb-6">
+        <div className="mb-5 sm:mb-6">
           <h2
-            className="text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
+            className="text-xs sm:text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
             style={{ fontFamily: "Poppins, sans-serif" }}
           >
             Services
           </h2>
           <p
-            className="text-3xl md:text-4xl mt-4 max-w-2xl"
+            className="text-2xl sm:text-3xl md:text-4xl mt-3 sm:mt-4 max-w-2xl leading-tight"
             style={{ fontFamily: "Poppins, sans-serif", fontWeight: 600 }}
           >
             How we deliver results
           </p>
-          <p className="text-white/60 mt-4 max-w-xl leading-relaxed">
-            A clear, repeatable methodology — from strategy through build to ongoing support — so you always know where things stand.
+          <p className="text-sm sm:text-base text-white/60 mt-3 sm:mt-4 max-w-xl leading-relaxed">
+            A clear, repeatable methodology — from strategy through build to
+            ongoing support — so you always know where things stand.
           </p>
         </div>
 
         {/* Three-step workflow infographic */}
-        <div className="mt-14 mb-20">
+        <div className="mt-10 sm:mt-14 mb-14 sm:mb-20">
           <ThreeStepWorkflow />
         </div>
 
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-20" />
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent mb-14 sm:mb-20" />
 
         {/* Detailed service offerings */}
-        <div className="mb-16">
+        <div className="mb-10 sm:mb-16">
           <h3
-            className="text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
+            className="text-xs sm:text-sm tracking-[0.3em] text-cyan-400/80 mb-2"
             style={{ fontFamily: "Poppins, sans-serif" }}
           >
             What We Do
           </h3>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 mb-16">
+        <div className="grid sm:grid-cols-2 gap-5 sm:gap-8 mb-12 sm:mb-16">
           {serviceOfferings.map((item, index) => (
             <div
               key={index}
-              className="border border-white/10 rounded-lg p-8 bg-white/[0.01] hover:bg-white/[0.02] transition-colors"
+              className="border border-white/10 rounded-lg p-6 sm:p-8 bg-white/[0.01] hover:bg-white/[0.02] transition-colors"
             >
               <div
-                className="text-5xl mb-6 opacity-20"
+                className="text-4xl sm:text-5xl mb-4 sm:mb-6 opacity-20"
                 style={{ fontFamily: "Poppins, sans-serif", fontWeight: 700 }}
+                aria-hidden
               >
                 {item.num}
               </div>
               <h4
-                className="text-xl mb-4"
+                className="text-lg sm:text-xl mb-3 sm:mb-4"
                 style={{ fontFamily: "Poppins, sans-serif", fontWeight: 600 }}
               >
                 {item.title}
               </h4>
-              <p className="text-white/60 leading-relaxed">{item.text}</p>
+              <p className="text-sm sm:text-base text-white/60 leading-relaxed">{item.text}</p>
             </div>
           ))}
         </div>
@@ -101,11 +102,11 @@ export default function Services() {
           <a
             href="#contact"
             onClick={handleContactClick}
-            className="inline-flex items-center gap-3 px-8 py-4 border border-cyan-400/30 text-cyan-400/80 hover:text-cyan-400 hover:border-cyan-400/60 hover:bg-cyan-400/5 rounded-lg text-sm tracking-wider transition-all"
+            className="inline-flex items-center gap-3 px-6 sm:px-8 py-3 sm:py-4 border border-cyan-400/30 text-cyan-400/80 hover:text-cyan-400 hover:border-cyan-400/60 hover:bg-cyan-400/5 rounded-lg text-sm tracking-wider transition-all min-h-[44px]"
             style={{ fontFamily: "Poppins, sans-serif" }}
           >
             Start a project
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
               <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </a>
